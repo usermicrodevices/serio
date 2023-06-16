@@ -1,13 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # Small utility to upload a file to an embedded Linux system that provides a shell
 # via its serial port.
 
-import sys, time
+import sys, time#, binascii
 from getopt import GetoptError, getopt as GetOpt
 
 class SerialFTP:
 
-    IO_TIME = .1
+    IO_TIME = 0#.001
     BYTES_PER_LINE = 20
 
     def __init__(self, port=None, baudrate=None, time=None, quiet=None):
@@ -33,7 +33,10 @@ class SerialFTP:
             dpart = ''
 
             while j < self.BYTES_PER_LINE and i < data_size:
-                dpart += '\\x%.2X' % int(ord(data[i]))
+                #print(i, data[i:i+1], type(data))
+                dpart += '\\x%.2X' % int(ord(data[i:i+1]))
+                #dpart += binascii.hexlify(data[i:i+1])
+                #dpart += data[i:i+1].hex()
                 j+=1
                 i+=1
 
@@ -41,13 +44,14 @@ class SerialFTP:
 
             # Show upload status
             if not self.quiet:
-                print "%d / %d" % (i, data_size)
+                if not i % 10000:
+                    print("%d / %d" % (i, data_size))
 
         return i
 
     def write(self, data):
-        self.s.write(data)
-        if data.endswith('\n'):
+        self.s.write(bytes(data, 'utf-8'))
+        if data.endswith('\n') and self.IO_TIME:
             # Have to give the target system time for disk/flash I/O
             time.sleep(self.IO_TIME)
 
@@ -75,18 +79,18 @@ class TelnetFTP(SerialFTP):
 
 
 def usage():
-    print '\nUsage: %s [OPTIONS]\n' % sys.argv[0]
-    print '\t-s, --source=<local file>              Path to local file'
-    print '\t-d, --destination=<remote file>        Path to remote file'
-    print '\t    --telnet=<host>                    Upload via telnet instead of serial'
-    print '\t-p, --port=<port>                      Serial port to use [/dev/ttyUSB0] or telnet port [23]'
-    print '\t-b, --baudrate=<baud>                  Serial port baud rate [115200]'
-    print '\t-t, --time=<seconds>                   Time to wait between echo commands [0.1]'
-    print '\t    --login=<username>                 Login name for telnet'
-    print '\t    --pass=<passwd>                    Password for telnet'
-    print '\t-q, --quiet                            Supress status messages'
-    print '\t-h, --help                             Show help'
-    print ''
+    print('\nUsage: %s [OPTIONS]\n' % sys.argv[0])
+    print('\t-s, --source=<local file>              Path to local file')
+    print('\t-d, --destination=<remote file>        Path to remote file')
+    print('\t    --telnet=<host>                    Upload via telnet instead of serial')
+    print('\t-p, --port=<port>                      Serial port to use [/dev/ttyUSB0] or telnet port [23]')
+    print('\t-b, --baudrate=<baud>                  Serial port baud rate [115200]')
+    print('\t-t, --time=<seconds>                   Time to wait between echo commands [0.1]')
+    print('\t    --login=<username>                 Login name for telnet')
+    print('\t    --pass=<passwd>                    Password for telnet')
+    print('\t-q, --quiet                            Supress status messages')
+    print('\t-h, --help                             Show help')
+    print('')
     sys.exit(1)
 
 def main():
@@ -104,8 +108,8 @@ def main():
     try:
         opts, args = GetOpt(sys.argv[1:],'p:b:s:d:t:qh', ['port=', 'baudrate=',
             'source=', 'destination=', 'time=', 'quiet', 'help', 'telnet=', 'login=', 'pass='])
-    except GetoptError, e:
-        print 'Usage error:', e
+    except GetoptError as e:
+        print('Usage error:', e)
         usage()
 
     for opt, arg in opts:
@@ -131,7 +135,7 @@ def main():
             usage()
 
     if not source or not destination:
-        print 'Usage error: must specify -s and -d options'
+        print('Usage error: must specify -s and -d options')
         usage()
 
     try:
@@ -151,9 +155,9 @@ def main():
         size = sftp.put(source, destination)
         sftp.close()
 
-        print 'Uploaded %d bytes from %s to %s' % (size, source, destination)
-    except Exception, e:
-        print "ERROR:", e
+        print('Uploaded %d bytes from %s to %s' % (size, source, destination))
+    except Exception as e:
+        print("ERROR:", e)
 
 
 if __name__ == '__main__':
